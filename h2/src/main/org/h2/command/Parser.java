@@ -379,6 +379,8 @@ import org.h2.value.ValueUuid;
 import org.h2.value.ValueVarbinary;
 import org.h2.value.ValueVarchar;
 
+import org.h2.command.query.GroupBy;
+
 /**
  * The parser is used to convert a SQL statement string to an command object.
  *
@@ -3229,16 +3231,24 @@ public class Parser {
         if (readIf(GROUP)) {
             read("BY");
             command.setGroupQuery();
-            ArrayList<Expression> list = Utils.newSmallArrayList();
+            ArrayList<GroupBy> list = Utils.newSmallArrayList();
             do {
                 if (isToken(OPEN_PAREN) && isOrdinaryGroupingSet()) {
                     if (!readIf(CLOSE_PAREN)) {
                         do {
-                            list.add(readExpression());
+                            list.add(new GroupBy(readExpression()));
                         } while (readIfMore());
                     }
                 } else {
-                    list.add(readExpression());
+                    Expression expr = readExpression();
+                    if (database.getMode().groupByColumnIndex && expr instanceof ValueExpression &&
+                            expr.getType().getValueType() == Value.INTEGER) {
+                        GroupBy grp = new GroupBy();
+                        grp.columnIndexExpr = expr;
+                        list.add(grp);
+                    }
+                    else
+                        list.add(new GroupBy(expr));
                 }
             } while (readIf(COMMA));
             if (!list.isEmpty()) {

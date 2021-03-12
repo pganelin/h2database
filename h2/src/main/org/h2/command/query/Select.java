@@ -111,7 +111,7 @@ public class Select extends Query {
 
     private int[] distinctIndexes;
 
-    private ArrayList<Expression> group;
+    private ArrayList<GroupBy> group;
 
     /**
      * The indexes of the group-by columns.
@@ -225,11 +225,11 @@ public class Select extends Query {
         isWindowQuery = true;
     }
 
-    public void setGroupBy(ArrayList<Expression> group) {
+    public void setGroupBy(ArrayList<GroupBy> group) {
         this.group = group;
     }
 
-    public ArrayList<Expression> getGroupBy() {
+    public ArrayList<GroupBy> getGroupBy() {
         return group;
     }
 
@@ -1049,7 +1049,15 @@ public class Select extends Query {
             }
             groupIndex = new int[size];
             for (int i = 0; i < size; i++) {
-                Expression expr = group.get(i);
+                Expression expr = group.get(i).expression;
+                if (expr==null) {
+                    int idx = group.get(i).columnIndexExpr.getValue(null).getInt() - 1;
+                    if (idx < 0 || idx >= expressions.size()) {
+                        throw DbException.get(ErrorCode.GROUP_BY_NOT_IN_THE_RESULT, Integer.toString(idx + 1),
+                                Integer.toString(expressions.size()));
+                    }
+                    expr = expressions.get(idx).getNonAliasExpression();
+                }
                 String sql = expr.getSQL(DEFAULT_SQL_FLAGS, WITHOUT_PARENTHESES);
                 int found = -1;
                 for (int j = 0; j < expSize; j++) {
